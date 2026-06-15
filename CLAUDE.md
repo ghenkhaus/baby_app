@@ -185,7 +185,11 @@ The app runs on a Raspberry Pi at `10.0.3.2` on the home network, accessible at 
 - **Deploy script**: `bash deploy.sh 10.0.3.2 gregoryhenkhaus`
   - Builds frontend, creates tarball (excludes node_modules + registry.db)
   - SCPs to Pi, extracts, preserves existing database
-  - Installs deps, restarts server via `nohup`
+  - Installs deps, restarts server via systemd (`baby-registry.service`).
+    The deploy user has passwordless sudo, so the systemd path is always taken;
+    the `nohup` branch is a fallback for hosts without it. Running an instance
+    outside systemd (the old nohup path) can orphan a process holding port 3001
+    and make the systemd unit flap — keep deploys on the systemd path.
 
 nginx config is at `/etc/nginx/sites-available/baby-registry` on the Pi. The repo
 copy lives at `nginx/baby-registry.conf`.
