@@ -180,14 +180,59 @@ npx tsx server/index.ts
 The app runs on a Raspberry Pi at `10.0.3.2` on the home network, accessible at `https://baby.henkhaus.org`.
 
 - **nginx** reverse proxies 80/443 → localhost:3001
-- **Self-signed TLS cert** at `/etc/ssl/certs/baby-registry.crt`
+- **TLS cert**: Let's Encrypt (see "TLS Certificates" below)
 - **Local DNS** (UniFi) resolves `baby.henkhaus.org` → `10.0.3.2`
 - **Deploy script**: `bash deploy.sh 10.0.3.2 gregoryhenkhaus`
   - Builds frontend, creates tarball (excludes node_modules + registry.db)
   - SCPs to Pi, extracts, preserves existing database
   - Installs deps, restarts server via `nohup`
 
-nginx config is at `/etc/nginx/sites-available/baby-registry` on the Pi.
+nginx config is at `/etc/nginx/sites-available/baby-registry` on the Pi. The repo
+copy lives at `nginx/baby-registry.conf`.
+
+### TLS Certificates
+
+The Pi uses a real, publicly-trusted **Let's Encrypt** cert obtained via the
+**DNS-01 challenge** through **Route53** — so the Pi never needs to be reachable
+from the internet. certbot writes a `_acme-challenge.baby.henkhaus.org` TXT
+record into the `henkhaus.org` Route53 zone to prove ownership, then removes it.
+Only outbound access to Let's Encrypt + AWS is required; no port forwarding.
+
+**One-time AWS setup** — create an IAM user with this Route53-only policy
+(replace `ZONEID` with the henkhaus.org hosted zone ID):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Effect": "Allow",
+      "Action": ["route53:ListHostedZones", "route53:GetChange"],
+      "Resource": ["*"] },
+    { "Effect": "Allow",
+      "Action": ["route53:ChangeResourceRecordSets"],
+      "Resource": ["arn:aws:route53:::hostedzone/ZONEID"] }
+  ]
+}
+```
+
+**Issue the cert** (run from the repo on your laptop):
+
+```bash
+AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... \
+  bash setup-certs.sh 10.0.3.2 gregoryhenkhaus
+```
+
+This installs certbot + the Route53 plugin on the Pi, issues the cert to
+`/etc/letsencrypt/live/baby.henkhaus.org/`, stores the AWS keys in
+`/root/.aws/credentials` (root-only, used by the renewal timer), and enables a
+deploy hook that reloads nginx on renewal.
+
+**Renewal** is automatic via `certbot.timer` (runs twice daily, renews within 30
+days of expiry). Verify with `sudo certbot renew --dry-run`.
+
+After issuing the cert the first time, point nginx at it by installing
+`nginx/baby-registry.conf` (already references the Let's Encrypt paths) and
+reloading: `sudo nginx -t && sudo systemctl reload nginx`.
 
 ## MCP Server
 
