@@ -23,3 +23,14 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Database (contains personal registry data — never commit)
+registry.db
+registry.db-shm
+registry.db-wal
+*.db
+*.db-shm
+*.db-wal
+
+# Personal data
+baby_registry_tracker.xlsx
