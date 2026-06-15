@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "baby-registry": {
+      "command": "node",
+      "args": ["/Users/gregoryhenkhaus/Desktop/baby_app/mcp-server/dist/index.js"],
+      "env": {
+        "REGISTRY_API_URL": "http://10.0.3.2:3001"
+      }
+    }
+  }
+}
