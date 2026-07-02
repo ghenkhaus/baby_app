@@ -49,6 +49,8 @@ export interface ThankYouCard {
   mailingName: string;
   address: string;
   note: string;
+  /** Personalization hints for Claude to weave into the drafted note ("Personal touches" in the UI). */
+  hint: string;
   status: ThankYouCardStatus;
   /** Server-managed: stamped when status enters "Sent", cleared when it leaves. */
   sentAt: string | null;

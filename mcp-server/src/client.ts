@@ -23,6 +23,7 @@ interface RegistryItem {
   productName: string;
   notes: string;
   registry: string;
+  registrationStatus: string;
   createdAt: string;
   updatedAt: string;
   contributors: Contribution[];
@@ -34,6 +35,8 @@ interface ThankYouCard {
   mailingName: string;
   address: string;
   note: string;
+  /** User-written personalization hints for drafting the note ("Personal touches" in the app). */
+  hint: string;
   /** "" = Not Started; lifecycle: "" → Drafted → Ready to Send → Sent */
   status: string;
   /** Server-managed: set when status enters "Sent", cleared when it leaves. */

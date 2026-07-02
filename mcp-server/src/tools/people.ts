@@ -141,7 +141,7 @@ export function registerPeopleTools(server: McpServer) {
 
   server.tool(
     "list_thank_you_cards",
-    "List thank-you cards with member names, the gifts those members gave, current note text, and lifecycle status — everything needed to author a personalized thank-you note. Filter by status to find cards that still need notes (status: \"\") or are awaiting mailing.",
+    "List thank-you cards with member names, the gifts those members gave, current note text, and lifecycle status — everything needed to author a personalized thank-you note. Each card's `hint` field holds the user's own personalization notes (how they know the giver, shower moments, inside jokes) — weave those details into the drafted message. Filter by status to find cards that still need notes (status: \"\") or are awaiting mailing.",
     {
       status: z
         .enum(["", "Drafted", "Ready to Send", "Sent"])
@@ -195,7 +195,7 @@ export function registerPeopleTools(server: McpServer) {
 
   server.tool(
     "update_thank_you_card",
-    "Update a thank-you card's label, mailing name, address, note text, or lifecycle status. Changes apply to every person who shares the card. Writing a note while status is \"\" auto-bumps the card to \"Drafted\".",
+    "Update a thank-you card's label, mailing name, address, note text, personalization hint, or lifecycle status. Changes apply to every person who shares the card. Writing a note while status is \"\" auto-bumps the card to \"Drafted\" (writing a hint does not).",
     {
       id: z.string().describe("Card ID (UUID)"),
       label: z.string().optional().describe('Optional shared label like "The Smiths"'),
@@ -206,6 +206,12 @@ export function registerPeopleTools(server: McpServer) {
         .optional()
         .describe(
           "Thank-you note text. Markdown is supported in-app, but the message is copied to Postable as plain text — keep formatting simple."
+        ),
+      hint: z
+        .string()
+        .optional()
+        .describe(
+          "Personalization hints used when drafting the note (usually written by the user in the app; Claude normally reads this rather than writes it)."
         ),
       status: z
         .enum(["", "Drafted", "Ready to Send", "Sent"])

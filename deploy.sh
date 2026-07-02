@@ -15,13 +15,14 @@ fi
 
 # Create tarball of what we need (no node_modules, include the db)
 echo "==> Packaging..."
+REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 tar czf /tmp/baby-registry-deploy.tar.gz \
   --exclude='node_modules' \
   --exclude='.git' \
   --exclude='registry.db' \
   --exclude='registry.db-wal' \
   --exclude='registry.db-shm' \
-  -C /Users/gregoryhenkhaus/Desktop baby_app
+  -C "$(dirname "$REPO_DIR")" "$(basename "$REPO_DIR")"
 
 # Copy to Pi
 echo "==> Copying to Pi..."

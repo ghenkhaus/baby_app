@@ -66,7 +66,7 @@ const PEOPLE_FIELDS: Record<string, string> = {
 
 const CARD_FIELDS: Record<string, string> = {
   label: "label", mailingName: "mailing_name", address: "address", note: "note",
-  status: "status", sentAt: "sent_at",
+  hint: "hint", status: "status", sentAt: "sent_at",
 };
 
 const VALID_CARD_STATUSES = new Set(["", "Drafted", "Ready to Send", "Sent"]);
@@ -492,6 +492,7 @@ interface CardRow {
   mailing_name: string;
   address: string;
   note: string;
+  hint: string;
   status: string;
   sent_at: string | null;
   created_at: string;
@@ -515,6 +516,7 @@ function rowToCard(row: CardRow, memberIds: string[] = []) {
     mailingName: row.mailing_name,
     address: row.address,
     note: row.note,
+    hint: row.hint,
     status: row.status,
     sentAt: row.sent_at,
     memberIds,
@@ -853,7 +855,7 @@ app.put("/api/thank-you-cards/:id", (req, res) => {
   const existing = db.prepare("SELECT * FROM thank_you_cards WHERE id = ?").get(id) as CardRow | undefined;
   if (!existing) return res.status(404).json({ error: "Not found" });
 
-  const { label, mailingName, address, note, status } = req.body;
+  const { label, mailingName, address, note, hint, status } = req.body;
   if (status !== undefined && (typeof status !== "string" || !VALID_CARD_STATUSES.has(status))) {
     return res.status(400).json({ error: "Invalid status" });
   }
@@ -865,6 +867,7 @@ app.put("/api/thank-you-cards/:id", (req, res) => {
     mailingName: mailingName ?? existing.mailing_name,
     address: address ?? existing.address,
     note: note ?? existing.note,
+    hint: hint ?? existing.hint,
     status: status ?? existing.status,
     sentAt: existing.sent_at,
   };
@@ -890,8 +893,8 @@ app.put("/api/thank-you-cards/:id", (req, res) => {
 
   const tx = db.transaction(() => {
     db.prepare(
-      `UPDATE thank_you_cards SET label=?, mailing_name=?, address=?, note=?, status=?, sent_at=?, updated_at=? WHERE id=?`
-    ).run(newVals.label, newVals.mailingName, newVals.address, newVals.note, newVals.status, newVals.sentAt, now, id);
+      `UPDATE thank_you_cards SET label=?, mailing_name=?, address=?, note=?, hint=?, status=?, sent_at=?, updated_at=? WHERE id=?`
+    ).run(newVals.label, newVals.mailingName, newVals.address, newVals.note, newVals.hint, newVals.status, newVals.sentAt, now, id);
 
     for (const [camelKey, dbCol] of Object.entries(CARD_FIELDS)) {
       const oldVal = String((existing as Record<string, unknown>)[dbCol] ?? "");
@@ -965,24 +968,38 @@ app.post("/api/people/:id/share-card", (req, res) => {
 
   const actor = getActor(req);
   const now = new Date().toISOString();
-  const oldCardId = me.thank_you_card_id;
-  const newCardId = other.thank_you_card_id;
-  if (oldCardId === newCardId) {
+  const keepCardId = me.thank_you_card_id;
+  const mergedCardId = other.thank_you_card_id;
+  if (keepCardId === mergedCardId) {
     return res.json(loadPerson(id));
   }
 
+  // Merge the two card groups rather than moving just this one person. If the
+  // other person already shares a card with others, every member moves onto
+  // this person's card so linking never tears an existing group apart. The card
+  // being viewed (me's) is preserved along with its note/address; the other
+  // card is deleted once it's empty.
+  const movedIds = (
+    db.prepare("SELECT id FROM people WHERE thank_you_card_id = ?").all(mergedCardId) as { id: string }[]
+  ).map((r) => r.id);
+
   const tx = db.transaction(() => {
-    db.prepare("UPDATE people SET thank_you_card_id = ?, updated_at = ? WHERE id = ?").run(newCardId, now, id);
-    insertAudit.run("person", id, "UPDATE", "thankYouCardId", oldCardId, newCardId, actor, now);
+    for (const pid of movedIds) {
+      db.prepare("UPDATE people SET thank_you_card_id = ?, updated_at = ? WHERE id = ?").run(keepCardId, now, pid);
+      insertAudit.run("person", pid, "UPDATE", "thankYouCardId", mergedCardId, keepCardId, actor, now);
+    }
   });
   tx();
-  deleteCardIfEmpty(oldCardId, actor, now);
+  deleteCardIfEmpty(mergedCardId, actor, now);
 
-  const person = loadPerson(id)!;
-  const card = loadCard(newCardId);
-  broadcast({ kind: "person-upsert", person, actor, source: getSource(req) });
-  if (card) broadcast({ kind: "card-upsert", card, actor, source: getSource(req) });
-  res.json(person);
+  const source = getSource(req);
+  const card = loadCard(keepCardId);
+  if (card) broadcast({ kind: "card-upsert", card, actor, source });
+  for (const pid of movedIds) {
+    const moved = loadPerson(pid);
+    if (moved) broadcast({ kind: "person-upsert", person: moved, actor, source });
+  }
+  res.json(loadPerson(id));
 });
 
 app.post("/api/people/:id/merge", (req, res) => {

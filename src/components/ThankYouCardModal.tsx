@@ -12,7 +12,7 @@ interface ThankYouCardModalProps {
   onClose: () => void;
   onUpdateCard: (
     id: string,
-    updates: Partial<{ label: string; mailingName: string; address: string; note: string; status: ThankYouCardStatus }>
+    updates: Partial<{ label: string; mailingName: string; address: string; note: string; hint: string; status: ThankYouCardStatus }>
   ) => Promise<ThankYouCard>;
   onOpenPerson: (id: string) => void;
   onToast: (message: string, type: "success" | "error") => void;
@@ -34,6 +34,7 @@ export function ThankYouCardModal({
   const [mailingName, setMailingName] = useState(card.mailingName);
   const [address, setAddress] = useState(card.address);
   const [note, setNote] = useState(card.note);
+  const [hint, setHint] = useState(card.hint);
   const [showPreview, setShowPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
@@ -43,7 +44,8 @@ export function ThankYouCardModal({
     setMailingName(card.mailingName);
     setAddress(card.address);
     setNote(card.note);
-  }, [card.id, card.label, card.mailingName, card.address, card.note]);
+    setHint(card.hint);
+  }, [card.id, card.label, card.mailingName, card.address, card.note, card.hint]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -101,17 +103,19 @@ export function ThankYouCardModal({
     label !== card.label ||
     mailingName !== card.mailingName ||
     address !== card.address ||
-    note !== card.note;
+    note !== card.note ||
+    hint !== card.hint;
 
   // Only send fields that actually changed — an unchanged explicit `status: ""`
   // (or any field) would block the server's auto-Drafted bump.
   const handleSave = async () => {
     if (!dirty || saving) return;
-    const updates: Partial<{ label: string; mailingName: string; address: string; note: string }> = {};
+    const updates: Partial<{ label: string; mailingName: string; address: string; note: string; hint: string }> = {};
     if (label !== card.label) updates.label = label;
     if (mailingName !== card.mailingName) updates.mailingName = mailingName;
     if (address !== card.address) updates.address = address;
     if (note !== card.note) updates.note = note;
+    if (hint !== card.hint) updates.hint = hint;
     setSaving(true);
     try {
       await onUpdateCard(card.id, updates);
@@ -301,6 +305,17 @@ export function ThankYouCardModal({
                   className={inputClass}
                 />
               </div>
+            </div>
+
+            <div>
+              <label className={labelClass}>Personal touches</label>
+              <textarea
+                value={hint}
+                onChange={(e) => setHint(e.target.value)}
+                rows={2}
+                placeholder="How you know them, shower moments, inside jokes — Claude uses this when drafting"
+                className={inputClass}
+              />
             </div>
 
             <div>

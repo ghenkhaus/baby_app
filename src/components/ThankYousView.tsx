@@ -3,6 +3,7 @@ import type { AppSettings, Person, ThankYouCard, ThankYouCardStatus } from "../t
 import { effectiveContributionAmount } from "../types";
 import { THANK_YOU_STATUSES, STATUS_META, formatSentDate } from "../utils/thankYouStatus";
 import { markdownToPlainText, copyText } from "../utils/markdownToPlainText";
+import { HintSpeedRun } from "./HintSpeedRun";
 
 const formatPrice = (price: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(price);
@@ -14,7 +15,7 @@ interface ThankYousViewProps {
   onOpenCard: (id: string) => void;
   onUpdateCard: (
     id: string,
-    updates: Partial<{ label: string; mailingName: string; address: string; note: string; status: ThankYouCardStatus }>
+    updates: Partial<{ label: string; mailingName: string; address: string; note: string; hint: string; status: ThankYouCardStatus }>
   ) => Promise<ThankYouCard>;
   onUpdateSettings: (updates: Partial<AppSettings>) => Promise<AppSettings>;
   onToast: (message: string, type: "success" | "error") => void;
@@ -48,6 +49,7 @@ export function ThankYousView({
   const [editingUrl, setEditingUrl] = useState(false);
   const [urlDraft, setUrlDraft] = useState("");
   const [savingUrl, setSavingUrl] = useState(false);
+  const [speedRun, setSpeedRun] = useState(false);
 
   const rows = useMemo<CardRowData[]>(() => {
     const membersByCard = new Map<string, Person[]>();
@@ -208,9 +210,19 @@ export function ThankYousView({
     <div>
       {/* Progress + Postable project */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <p className="text-sm font-semibold text-slate-800 tabular-nums">
-          {sentCount} of {rows.length} sent
-        </p>
+        <div className="flex items-center gap-2.5">
+          <p className="text-sm font-semibold text-slate-800 tabular-nums">
+            {sentCount} of {rows.length} sent
+          </p>
+          <button
+            type="button"
+            onClick={() => setSpeedRun(true)}
+            className="inline-flex items-center gap-1 text-xs font-medium text-indigo-700 bg-white/70 hover:bg-white border border-indigo-200 rounded-lg px-2.5 py-1.5 transition-colors"
+            title="Step through cards and add personal touches for Claude to use when drafting"
+          >
+            ⚡ Personalize
+          </button>
+        </div>
         {editingUrl ? (
           <div className="flex items-center gap-1.5 flex-wrap">
             <input
@@ -501,6 +513,15 @@ export function ThankYousView({
             </table>
           </div>
         </div>
+      )}
+
+      {speedRun && (
+        <HintSpeedRun
+          rows={sorted}
+          onUpdateCard={onUpdateCard}
+          onClose={() => setSpeedRun(false)}
+          onToast={onToast}
+        />
       )}
     </div>
   );

@@ -53,6 +53,7 @@ db.exec(`
     mailing_name TEXT NOT NULL DEFAULT '',
     address TEXT NOT NULL DEFAULT '',
     note TEXT NOT NULL DEFAULT '',
+    hint TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT '' CHECK(status IN ('', 'Drafted', 'Ready to Send', 'Sent')),
     sent_at TEXT,
     created_at TEXT NOT NULL,
@@ -295,6 +296,10 @@ db.pragma("foreign_keys = OFF");
   if (!cols.includes("sent_at")) {
     db.exec("ALTER TABLE thank_you_cards ADD COLUMN sent_at TEXT");
     console.log("Added thank_you_cards.sent_at.");
+  }
+  if (!cols.includes("hint")) {
+    db.exec("ALTER TABLE thank_you_cards ADD COLUMN hint TEXT NOT NULL DEFAULT ''");
+    console.log("Added thank_you_cards.hint.");
   }
 }
 

@@ -312,7 +312,7 @@ export function useRegistry() {
     return result;
   }, []);
 
-  const updateThankYouCard = useCallback(async (id: string, updates: Partial<{ label: string; mailingName: string; address: string; note: string; status: ThankYouCardStatus }>) => {
+  const updateThankYouCard = useCallback(async (id: string, updates: Partial<{ label: string; mailingName: string; address: string; note: string; hint: string; status: ThankYouCardStatus }>) => {
     const card = await api.updateThankYouCard(id, updates);
     setThankYouCards((prev) => prev.map((c) => (c.id === id ? card : c)));
     setPeople((prev) => prev.map((p) => (p.thankYouCardId === id ? { ...p, thankYouCard: card } : p)));
