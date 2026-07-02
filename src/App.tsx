@@ -418,7 +418,6 @@ function App() {
           onClose={() => setViewingPersonId(null)}
           onEdit={handleEditPerson}
           onDelete={(id) => setDeletingPersonId(id)}
-          onUpdateCard={registry.updateThankYouCard}
           onShareCard={registry.sharePersonCard}
           onUnlinkCard={registry.unlinkPersonCard}
           onMergePerson={registry.mergePerson}

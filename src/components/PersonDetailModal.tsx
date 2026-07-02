@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Person, ThankYouCard } from "../types";
+import type { Person } from "../types";
 import { effectiveContributionAmount } from "../types";
-import { Markdown } from "./Markdown";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 interface PersonDetailModalProps {
   person: Person;
@@ -9,10 +9,6 @@ interface PersonDetailModalProps {
   onClose: () => void;
   onEdit: (person: Person) => void;
   onDelete: (id: string) => void;
-  onUpdateCard: (
-    id: string,
-    updates: Partial<{ label: string; mailingName: string; address: string; note: string }>
-  ) => Promise<ThankYouCard>;
   onShareCard: (personId: string, otherPersonId: string) => Promise<unknown>;
   onUnlinkCard: (personId: string) => Promise<unknown>;
   onMergePerson: (sourceId: string, targetId: string) => Promise<unknown>;
@@ -30,7 +26,6 @@ export function PersonDetailModal({
   onClose,
   onEdit,
   onDelete,
-  onUpdateCard,
   onShareCard,
   onUnlinkCard,
   onMergePerson,
@@ -39,23 +34,12 @@ export function PersonDetailModal({
   onOpenCard,
 }: PersonDetailModalProps) {
   const card = person.thankYouCard;
-  const [label, setLabel] = useState(card?.label ?? "");
-  const [mailingName, setMailingName] = useState(card?.mailingName ?? "");
-  const [address, setAddress] = useState(card?.address ?? "");
-  const [note, setNote] = useState(card?.note ?? "");
-  const [showPreview, setShowPreview] = useState(false);
-  const [savingCard, setSavingCard] = useState(false);
   const [showSharePicker, setShowSharePicker] = useState(false);
   const [showMergePicker, setShowMergePicker] = useState(false);
   const [mergeCandidate, setMergeCandidate] = useState<Person | null>(null);
   const [merging, setMerging] = useState(false);
-
-  useEffect(() => {
-    setLabel(card?.label ?? "");
-    setMailingName(card?.mailingName ?? "");
-    setAddress(card?.address ?? "");
-    setNote(card?.note ?? "");
-  }, [card?.id, card?.label, card?.mailingName, card?.address, card?.note]);
+  // Candidate whose own note would be discarded by linking — held for confirmation.
+  const [shareConfirm, setShareConfirm] = useState<Person | null>(null);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -76,32 +60,10 @@ export function PersonDetailModal({
     (p) => p.id !== person.id && p.thankYouCardId !== person.thankYouCardId
   );
 
-  const cardDirty =
-    card !== null &&
-    (label !== card.label ||
-      mailingName !== card.mailingName ||
-      address !== card.address ||
-      note !== card.note);
-
-  const handleSaveCard = async () => {
-    if (!card || !cardDirty) return;
-    setSavingCard(true);
-    try {
-      await onUpdateCard(card.id, { label, mailingName, address, note });
-    } finally {
-      setSavingCard(false);
-    }
-  };
-
   const totalContributed = person.contributions.reduce(
     (sum, c) => sum + (effectiveContributionAmount(c) ?? 0),
     0
   );
-
-  const inputClass =
-    "w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl bg-white/80 text-slate-800 placeholder:text-slate-400 hover:border-slate-300 focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-colors";
-  const labelClass =
-    "block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5";
 
   return (
     <div
@@ -175,13 +137,13 @@ export function PersonDetailModal({
             </div>
           )}
 
-          {/* Thank-you card section */}
+          {/* Linked people section */}
           {card && (
             <div className="mb-5 p-4 sm:p-5 bg-gradient-to-br from-pink-50/60 via-fuchsia-50/40 to-violet-50/50 ring-1 ring-inset ring-pink-200/60 rounded-2xl">
               <div className="flex items-baseline justify-between gap-2 mb-3">
                 <div className="flex items-baseline gap-2 min-w-0">
                   <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-                    Thank-you card
+                    Linked people
                   </h3>
                   {onOpenCard && (
                     <button
@@ -196,167 +158,84 @@ export function PersonDetailModal({
                 </div>
                 {isShared && (
                   <span className="text-[11px] font-medium text-fuchsia-700 bg-white/70 px-2 py-0.5 rounded-full ring-1 ring-inset ring-fuchsia-200/70">
-                    Shared with {otherMembers.length}{" "}
+                    Linked to {otherMembers.length}{" "}
                     {otherMembers.length === 1 ? "other" : "others"}
                   </span>
                 )}
               </div>
 
               <div className="space-y-3">
-                {/* Card label, shown only when meaningful */}
-                {(isShared || label) && (
-                  <div>
-                    <label className={labelClass}>Card label</label>
-                    <input
-                      type="text"
-                      value={label}
-                      onChange={(e) => setLabel(e.target.value)}
-                      placeholder='e.g. "The Smiths"'
-                      className={inputClass}
-                    />
+                {otherMembers.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {otherMembers.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => onOpenPerson(m.id)}
+                        className="text-xs font-medium text-slate-700 bg-white/80 hover:bg-white border border-slate-200 rounded-full px-2 py-0.5 transition-colors"
+                      >
+                        {m.name}
+                      </button>
+                    ))}
                   </div>
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    Not linked to anyone else.
+                  </p>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className={labelClass}>Address to</label>
-                    <input
-                      type="text"
-                      value={mailingName}
-                      onChange={(e) => setMailingName(e.target.value)}
-                      placeholder={!isShared ? person.name : "e.g. The Smith Family"}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Mailing address</label>
-                    <textarea
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      rows={2}
-                      placeholder="Street, city, state, zip"
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                      Note
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-slate-400">Markdown</span>
-                      {note && (
-                        <button
-                          type="button"
-                          onClick={() => setShowPreview(!showPreview)}
-                          className={`text-xs px-2 py-0.5 rounded-md font-medium transition-colors ${
-                            showPreview
-                              ? "bg-indigo-100 text-indigo-700 ring-1 ring-inset ring-indigo-200"
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                          }`}
-                        >
-                          {showPreview ? "Edit" : "Preview"}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {showPreview ? (
-                    <div className="w-full min-h-[6rem] px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl bg-white/70">
-                      <Markdown content={note} className="text-slate-700" />
-                    </div>
-                  ) : (
-                    <textarea
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      rows={6}
-                      placeholder="Draft your thank-you here…"
-                      className={inputClass}
-                    />
+                <div className="flex flex-wrap items-center gap-2">
+                  {isShared && (
+                    <button
+                      type="button"
+                      onClick={() => onUnlinkCard(person.id)}
+                      className="text-xs font-medium text-slate-700 bg-white/70 hover:bg-white border border-slate-200 rounded-lg px-2.5 py-1 transition-colors"
+                    >
+                      Unlink
+                    </button>
                   )}
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {isShared && (
+                  {shareCandidates.length > 0 && (
+                    <div className="relative">
                       <button
                         type="button"
-                        onClick={() => onUnlinkCard(person.id)}
-                        className="text-xs font-medium text-slate-700 bg-white/70 hover:bg-white border border-slate-200 rounded-lg px-2.5 py-1 transition-colors"
+                        onClick={() => setShowSharePicker((s) => !s)}
+                        className="text-xs font-medium text-fuchsia-700 bg-white/70 hover:bg-white border border-fuchsia-200 rounded-lg px-2.5 py-1 transition-colors"
                       >
-                        Unlink from this card
+                        Link to another person…
                       </button>
-                    )}
-                    {shareCandidates.length > 0 && (
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setShowSharePicker((s) => !s)}
-                          className="text-xs font-medium text-fuchsia-700 bg-white/70 hover:bg-white border border-fuchsia-200 rounded-lg px-2.5 py-1 transition-colors"
-                        >
-                          Share with another person…
-                        </button>
-                        {showSharePicker && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-10"
-                              onClick={() => setShowSharePicker(false)}
-                            />
-                            <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-slate-200 rounded-xl shadow-xl shadow-slate-900/10 py-1 min-w-[200px] max-h-64 overflow-y-auto">
-                              {shareCandidates.map((p) => (
-                                <button
-                                  key={p.id}
-                                  type="button"
-                                  onClick={() => {
-                                    setShowSharePicker(false);
+                      {showSharePicker && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => setShowSharePicker(false)}
+                          />
+                          <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-slate-200 rounded-xl shadow-xl shadow-slate-900/10 py-1 min-w-[200px] max-h-64 overflow-y-auto">
+                            {shareCandidates.map((p) => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => {
+                                  setShowSharePicker(false);
+                                  // Linking keeps this card and discards the
+                                  // other person's card. Warn first if that
+                                  // card has a note worth losing.
+                                  if (p.thankYouCard?.note.trim()) {
+                                    setShareConfirm(p);
+                                  } else {
                                     onShareCard(person.id, p.id);
-                                  }}
-                                  className="w-full text-left px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-                                >
-                                  {p.name}
-                                  {p.thankYouCard?.label && (
-                                    <span className="text-slate-400 ml-1">
-                                      ({p.thankYouCard.label})
-                                    </span>
-                                  )}
-                                </button>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleSaveCard}
-                    disabled={!cardDirty || savingCard}
-                    className="px-3 py-1.5 text-xs font-semibold text-white bg-gradient-to-b from-indigo-500 to-indigo-600 rounded-lg hover:from-indigo-500 hover:to-indigo-700 transition-all shadow-sm shadow-indigo-600/25 ring-1 ring-inset ring-white/10 disabled:opacity-50"
-                  >
-                    {savingCard ? "Saving…" : cardDirty ? "Save card" : "Saved"}
-                  </button>
-                </div>
-
-                {otherMembers.length > 0 && (
-                  <div className="pt-2 border-t border-pink-200/50">
-                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                      Also on this card
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {otherMembers.map((m) => (
-                        <button
-                          key={m.id}
-                          type="button"
-                          onClick={() => onOpenPerson(m.id)}
-                          className="text-xs font-medium text-slate-700 bg-white/80 hover:bg-white border border-slate-200 rounded-full px-2 py-0.5 transition-colors"
-                        >
-                          {m.name}
-                        </button>
-                      ))}
+                                  }
+                                }}
+                                className="w-full text-left px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                              >
+                                {p.name}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -538,6 +417,20 @@ export function PersonDetailModal({
             </div>
           </div>
         </div>
+      )}
+
+      {shareConfirm && (
+        <ConfirmDialog
+          title={`Discard ${shareConfirm.name}'s note?`}
+          message={`${shareConfirm.name} already has a thank-you note started. Linking them onto this card will keep this card's note and permanently discard theirs. This can't be undone.`}
+          confirmLabel="Link & discard"
+          onConfirm={() => {
+            const target = shareConfirm;
+            setShareConfirm(null);
+            onShareCard(person.id, target.id);
+          }}
+          onCancel={() => setShareConfirm(null)}
+        />
       )}
     </div>
   );

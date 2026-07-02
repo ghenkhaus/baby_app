@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
-import type { Person, ThankYouCardStatus } from "../types";
+import type { Person } from "../types";
 import { effectiveContributionAmount } from "../types";
-import { STATUS_META, formatSentDate } from "../utils/thankYouStatus";
 
 const formatPrice = (price: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(price);
@@ -11,7 +10,7 @@ interface PeopleViewProps {
   onOpenPerson: (id: string) => void;
 }
 
-type SortField = "name" | "items" | "total" | "note";
+type SortField = "name" | "items" | "total";
 type SortDirection = "asc" | "desc";
 
 export function PeopleView({ people, onOpenPerson }: PeopleViewProps) {
@@ -36,7 +35,6 @@ export function PeopleView({ people, onOpenPerson }: PeopleViewProps) {
         (sum, c) => sum + (effectiveContributionAmount(c) ?? 0),
         0
       );
-      const cardStatus: ThankYouCardStatus = p.thankYouCard?.status ?? "";
       const otherMembers = (cardMembers.get(p.thankYouCardId) ?? []).filter(
         (m) => m.id !== p.id
       );
@@ -44,7 +42,6 @@ export function PeopleView({ people, onOpenPerson }: PeopleViewProps) {
         person: p,
         itemCount: p.contributions.length,
         total,
-        cardStatus,
         otherMembers,
       };
     });
@@ -56,8 +53,7 @@ export function PeopleView({ people, onOpenPerson }: PeopleViewProps) {
     return rows.filter(
       (r) =>
         r.person.name.toLowerCase().includes(q) ||
-        r.person.email.toLowerCase().includes(q) ||
-        (r.person.thankYouCard?.label ?? "").toLowerCase().includes(q)
+        r.person.email.toLowerCase().includes(q)
     );
   }, [rows, search]);
 
@@ -74,10 +70,6 @@ export function PeopleView({ people, onOpenPerson }: PeopleViewProps) {
           break;
         case "total":
           cmp = a.total - b.total;
-          break;
-        case "note":
-          // Workflow order: Not Started < Drafted < Ready to Send < Sent
-          cmp = STATUS_META[a.cardStatus].rank - STATUS_META[b.cardStatus].rank;
           break;
       }
       // Tie-break on name so the order is stable
@@ -161,20 +153,12 @@ export function PeopleView({ people, onOpenPerson }: PeopleViewProps) {
                     onSort={toggleSort}
                     className="text-right px-2 py-2.5 w-28"
                   />
-                  <SortHeader
-                    label="Thank-you note"
-                    field="note"
-                    sortField={sortField}
-                    sortDirection={sortDirection}
-                    onSort={toggleSort}
-                    className="text-left px-2 py-2.5 w-44"
-                  />
-                  <th className="text-left px-2 py-2.5">Shared with</th>
+                  <th className="text-left px-2 py-2.5">Linked</th>
                   <th className="w-4" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {sorted.map(({ person, itemCount, total, cardStatus, otherMembers }) => (
+                {sorted.map(({ person, itemCount, total, otherMembers }) => (
                   <tr
                     key={person.id}
                     onClick={() => onOpenPerson(person.id)}
@@ -197,21 +181,6 @@ export function PeopleView({ people, onOpenPerson }: PeopleViewProps) {
                     </td>
                     <td className="px-2 py-2.5 text-right tabular-nums text-slate-700">
                       {total > 0 ? formatPrice(total) : <span className="text-slate-300">—</span>}
-                    </td>
-                    <td className="px-2 py-2.5">
-                      <span
-                        className={`inline-flex items-center gap-1.5 text-xs ${STATUS_META[cardStatus].text}`}
-                      >
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${STATUS_META[cardStatus].dot}`}
-                        />
-                        {STATUS_META[cardStatus].label}
-                        {cardStatus === "Sent" && person.thankYouCard?.sentAt && (
-                          <span className="text-slate-400">
-                            {formatSentDate(person.thankYouCard.sentAt)}
-                          </span>
-                        )}
-                      </span>
                     </td>
                     <td className="px-2 py-2.5 min-w-0">
                       {otherMembers.length > 0 ? (
