@@ -65,6 +65,22 @@ export function PersonDetailModal({
     0
   );
 
+  // Gifts recorded against other members of this person's household (shared
+  // card) that aren't already on this person. Contributions stay attributed to
+  // the individual, so a linked partner's view shows none of their own — this
+  // count powers a hint pointing at the shared card where the household's gifts
+  // actually live.
+  const householdGiftCount = useMemo(() => {
+    const own = new Set(person.contributions.map((c) => c.itemId));
+    const others = new Set<string>();
+    for (const m of otherMembers) {
+      for (const c of m.contributions) {
+        if (!own.has(c.itemId)) others.add(c.itemId);
+      }
+    }
+    return others.size;
+  }, [otherMembers, person.contributions]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm sm:p-4 animate-[fadeIn_150ms_ease-out]"
@@ -286,6 +302,22 @@ export function PersonDetailModal({
                   );
                 })}
               </ul>
+            )}
+            {householdGiftCount > 0 && (
+              <button
+                type="button"
+                onClick={() => card && onOpenCard?.(card.id)}
+                disabled={!card || !onOpenCard}
+                className="mt-2 w-full flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-left text-xs text-slate-500 hover:text-indigo-600 hover:bg-slate-50 transition-colors disabled:hover:bg-transparent disabled:hover:text-slate-500 disabled:cursor-default"
+              >
+                <svg className="w-3.5 h-3.5 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l3.586-3.586z" />
+                </svg>
+                <span>
+                  {householdGiftCount}{person.contributions.length > 0 ? " more" : ""} household gift{householdGiftCount === 1 ? "" : "s"} tracked on the shared card
+                  {card && onOpenCard ? " →" : ""}
+                </span>
+              </button>
             )}
           </div>
 
