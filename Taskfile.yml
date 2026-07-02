@@ -1,0 +1,87 @@
+# Task runner for the Baby Registry Tracker.
+# Install the runner from https://taskfile.dev, then run `task` to list commands.
+version: "3"
+
+vars:
+  # npm's default cache has root-owned files on some machines; use a writable one.
+  NPM_CACHE: /tmp/npm-cache
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  install:
+    desc: Install dependencies (Tailwind v4 + Vite 8 need --legacy-peer-deps)
+    cmds:
+      - npm_config_cache={{.NPM_CACHE}} npm install --legacy-peer-deps
+
+  dev:
+    desc: Run the Vite dev server (port 5173, proxies /api → :3001)
+    cmds:
+      - npm run dev
+
+  server:
+    desc: Run the Express API server (port 3001)
+    deps: [_ensure-env]
+    cmds:
+      - npm run server
+
+  up:
+    desc: Run the API and frontend together (the usual local dev command)
+    deps: [server, dev]
+
+  build:
+    desc: Type-check and build the frontend into dist/
+    cmds:
+      - npm run build
+
+  start:
+    desc: Build, then serve API + built frontend from a single process (port 3001)
+    deps: [_ensure-env]
+    cmds:
+      - task: build
+      - npm run server
+
+  preview:
+    desc: Preview the production build with Vite
+    cmds:
+      - npm run preview
+
+  seed:
+    desc: "Seed the database from JSON (usage: task seed -- path/to/file.json)"
+    cmds:
+      - npm run seed -- {{.CLI_ARGS}}
+
+  lint:
+    desc: Run ESLint over the project
+    cmds:
+      - npm run lint
+
+  deploy:
+    desc: "Build and deploy to the Raspberry Pi (override HOST=/ USER=)"
+    vars:
+      HOST: '{{.HOST | default "10.0.3.2"}}'
+      USER: '{{.USER | default "gregoryhenkhaus"}}'
+    cmds:
+      - bash deploy.sh {{.HOST}} {{.USER}}
+
+  certs:
+    desc: "One-time TLS cert setup on the Pi (needs AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY)"
+    vars:
+      HOST: '{{.HOST | default "10.0.3.2"}}'
+      USER: '{{.USER | default "gregoryhenkhaus"}}'
+    cmds:
+      - bash setup-certs.sh {{.HOST}} {{.USER}}
+
+  # Creates a stub .env if one is missing — `npm run server` hard-fails without it.
+  _ensure-env:
+    internal: true
+    silent: true
+    status:
+      - test -f .env
+    cmds:
+      - printf '# Local dev environment. Optional keys:\n# JSONLINK_API_KEY=   (enables product link scraping via jsonlink.io)\n' > .env
+      - 'echo "Created a stub .env — add JSONLINK_API_KEY to enable product link scraping."'
