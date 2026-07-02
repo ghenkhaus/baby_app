@@ -1,28 +1,32 @@
 # nginx reverse proxy for the Baby Registry Tracker.
-# Install on the Pi at /etc/nginx/sites-available/baby-registry and symlink:
+#
+# This is a TEMPLATE. `${DOMAIN}` is filled in from .env by `task nginx:config`,
+# which writes the rendered config to nginx/baby-registry.conf (gitignored).
+# Install that rendered file on the host at
+# /etc/nginx/sites-available/baby-registry and symlink it:
 #   sudo ln -sf /etc/nginx/sites-available/baby-registry /etc/nginx/sites-enabled/
 #   sudo nginx -t && sudo systemctl reload nginx
 #
 # Uses the Let's Encrypt cert issued by setup-certs.sh (DNS-01 / Route53).
-# The Pi is NOT exposed to the internet — these ports are only reachable on the
-# LAN, and baby.henkhaus.org resolves to 10.0.3.2 via local UniFi DNS.
+# ${DOMAIN} must match DOMAIN in .env and the cert. If the host is not exposed
+# to the internet, point your domain at its LAN IP via local DNS.
 
 # Redirect plain HTTP to HTTPS.
 server {
     listen 80;
     listen [::]:80;
-    server_name baby.henkhaus.org;
+    server_name ${DOMAIN};
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
-    server_name baby.henkhaus.org;
+    server_name ${DOMAIN};
 
     # Let's Encrypt certificate (auto-renewed by certbot.timer).
-    ssl_certificate     /etc/letsencrypt/live/baby.henkhaus.org/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/baby.henkhaus.org/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
 
     # Modern, safe TLS defaults.
     ssl_protocols       TLSv1.2 TLSv1.3;

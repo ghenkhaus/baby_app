@@ -1,8 +1,17 @@
 #!/bin/bash
 set -e
 
-PI_HOST="${1:-10.0.3.2}"
-PI_USER="${2:-gregoryhenkhaus}"
+# Load deployment config (PI_HOST, PI_USER, ...) from .env if present.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "$SCRIPT_DIR/.env" ]; then
+  set -a; . "$SCRIPT_DIR/.env"; set +a
+fi
+
+# Target host/user come from CLI args, else .env. Both are required.
+PI_HOST="${1:-${PI_HOST:-}}"
+PI_USER="${2:-${PI_USER:-}}"
+: "${PI_HOST:?Set PI_HOST in .env or pass it as the first argument}"
+: "${PI_USER:?Set PI_USER in .env or pass it as the second argument}"
 APP_DIR="/home/$PI_USER/baby-registry"
 
 echo "==> Deploying to $PI_USER@$PI_HOST:$APP_DIR"

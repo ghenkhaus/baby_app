@@ -1,28 +1,38 @@
 #!/bin/bash
 #
-# One-time TLS setup for the Pi: issues a real Let's Encrypt cert for
-# baby.henkhaus.org using the DNS-01 challenge via Route53.
+# One-time TLS setup for the target host: issues a real Let's Encrypt cert for
+# your domain using the DNS-01 challenge via Route53.
 #
-# The Pi never needs to be reachable from the internet. certbot proves domain
-# ownership by writing a TXT record into the henkhaus.org Route53 zone, so only
+# The host never needs to be reachable from the internet. certbot proves domain
+# ownership by writing a TXT record into your Route53 hosted zone, so only
 # outbound access to Let's Encrypt + AWS is required.
 #
+# Config is read from .env (see .env.example): PI_HOST, PI_USER, DOMAIN,
+# CERTBOT_EMAIL, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY. PI_HOST / PI_USER may
+# also be passed as positional args.
+#
 # Prerequisites (see CLAUDE.md "TLS Certificates"):
-#   - An AWS IAM user with the Route53 policy from docs, and its keys exported:
-#       export AWS_ACCESS_KEY_ID=...
-#       export AWS_SECRET_ACCESS_KEY=...
-#   - henkhaus.org's authoritative DNS hosted in Route53.
+#   - An AWS IAM user with the Route53 policy from the docs.
+#   - Your domain's authoritative DNS hosted in Route53.
 #
 # Usage:
-#   AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... \
-#     bash setup-certs.sh [pi-host] [pi-user]
+#   bash setup-certs.sh [pi-host] [pi-user]
 #
 set -e
 
-PI_HOST="${1:-10.0.3.2}"
-PI_USER="${2:-gregoryhenkhaus}"
-DOMAIN="baby.henkhaus.org"
-EMAIL="greg.henkhaus@gmail.com"
+# Load config (PI_HOST, PI_USER, DOMAIN, CERTBOT_EMAIL, AWS_*) from .env if present.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "$SCRIPT_DIR/.env" ]; then
+  set -a; . "$SCRIPT_DIR/.env"; set +a
+fi
+
+PI_HOST="${1:-${PI_HOST:-}}"
+PI_USER="${2:-${PI_USER:-}}"
+: "${PI_HOST:?Set PI_HOST in .env or pass it as the first argument}"
+: "${PI_USER:?Set PI_USER in .env or pass it as the second argument}"
+: "${DOMAIN:?Set DOMAIN in .env (e.g. registry.example.com)}"
+: "${CERTBOT_EMAIL:?Set CERTBOT_EMAIL in .env}"
+EMAIL="$CERTBOT_EMAIL"
 
 if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
   echo "ERROR: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be set." >&2
@@ -88,6 +98,6 @@ echo "  sudo certbot renew --dry-run"
 REMOTE
 
 echo ""
-echo "==> Cert issued. Next: update the nginx config to point at the new cert"
-echo "    (see nginx/baby-registry.conf) and reload nginx:"
+echo "==> Cert issued. Next: render the nginx config (task nginx:config),"
+echo "    install it on the host, and reload nginx:"
 echo "      sudo systemctl reload nginx"

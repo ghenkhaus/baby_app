@@ -60,21 +60,24 @@ tasks:
     cmds:
       - npm run lint
 
-  deploy:
-    desc: "Build and deploy to the Raspberry Pi (override HOST=/ USER=)"
-    vars:
-      HOST: '{{.HOST | default "10.0.3.2"}}'
-      USER: '{{.USER | default "gregoryhenkhaus"}}'
+  nginx:config:
+    desc: "Render nginx/baby-registry.conf from the template using DOMAIN in .env"
     cmds:
-      - bash deploy.sh {{.HOST}} {{.USER}}
+      - |
+        set -a; [ -f .env ] && . ./.env; set +a
+        : "${DOMAIN:?Set DOMAIN in .env (e.g. registry.example.com)}"
+        sed "s|\${DOMAIN}|${DOMAIN}|g" nginx/baby-registry.conf.template > nginx/baby-registry.conf
+        echo "Wrote nginx/baby-registry.conf for ${DOMAIN}"
+
+  deploy:
+    desc: "Build and deploy to your host (config from .env; override: task deploy -- <host> <user>)"
+    cmds:
+      - bash deploy.sh {{.CLI_ARGS}}
 
   certs:
-    desc: "One-time TLS cert setup on the Pi (needs AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY)"
-    vars:
-      HOST: '{{.HOST | default "10.0.3.2"}}'
-      USER: '{{.USER | default "gregoryhenkhaus"}}'
+    desc: "One-time TLS cert setup on your host (config from .env, incl. AWS_* keys)"
     cmds:
-      - bash setup-certs.sh {{.HOST}} {{.USER}}
+      - bash setup-certs.sh {{.CLI_ARGS}}
 
   # Creates a stub .env if one is missing — `npm run server` hard-fails without it.
   _ensure-env:

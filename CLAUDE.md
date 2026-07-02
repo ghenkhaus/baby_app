@@ -158,7 +158,7 @@ The `audit_log` table tracks all data changes for accountability:
 | field_name | string \| null | Which field changed (for updates) |
 | old_value | string \| null | Previous value |
 | new_value | string \| null | New value |
-| actor | string | Device name + IP (e.g. `"MCP / Claude (10.0.3.1)"`) |
+| actor | string | Device name + IP (e.g. `"MCP / Claude (192.0.2.10)"`) |
 | timestamp | string (ISO 8601) | When the change occurred |
 
 All API mutations automatically log to audit. The `X-Device-Name` header identifies the client (browser sends device info, MCP server sends `"MCP / Claude"`).
@@ -175,35 +175,44 @@ npx vite build
 npx tsx server/index.ts
 ```
 
-### Raspberry Pi Deployment
+### Self-hosted deployment (e.g. Raspberry Pi)
 
-The app runs on a Raspberry Pi at `10.0.3.2` on the home network, accessible at `https://baby.henkhaus.org`.
+The included `deploy.sh` targets a Linux host (originally a Raspberry Pi on a home
+LAN) reachable over SSH. Configure the target in `.env` (see `.env.example`):
+`PI_HOST`, `PI_USER`, and — for TLS — `DOMAIN` and `CERTBOT_EMAIL`.
 
-- **nginx** reverse proxies 80/443 → localhost:3001
-- **TLS cert**: Let's Encrypt (see "TLS Certificates" below)
-- **Local DNS** (UniFi) resolves `baby.henkhaus.org` → `10.0.3.2`
-- **Deploy script**: `bash deploy.sh 10.0.3.2 gregoryhenkhaus`
+- **nginx** reverse proxies 80/443 → localhost:3001 (see `nginx/baby-registry.conf.template`; render it with `task nginx:config`)
+- **TLS cert**: Let's Encrypt via DNS-01 (see "TLS Certificates" below)
+- **Local DNS** resolves `$DOMAIN` → the host's LAN IP (`$PI_HOST`)
+- **Deploy script**: `bash deploy.sh` (reads `PI_HOST`/`PI_USER` from `.env`, or
+  pass them as `bash deploy.sh <host> <user>`)
   - Builds frontend, creates tarball (excludes node_modules + registry.db)
-  - SCPs to Pi, extracts, preserves existing database
+  - SCPs to the host, extracts, preserves existing database
   - Installs deps, restarts server via systemd (`baby-registry.service`).
-    The deploy user has passwordless sudo, so the systemd path is always taken;
+    If the deploy user has passwordless sudo the systemd path is taken;
     the `nohup` branch is a fallback for hosts without it. Running an instance
     outside systemd (the old nohup path) can orphan a process holding port 3001
     and make the systemd unit flap — keep deploys on the systemd path.
 
-nginx config is at `/etc/nginx/sites-available/baby-registry` on the Pi. The repo
-copy lives at `nginx/baby-registry.conf`.
+nginx config is installed at `/etc/nginx/sites-available/baby-registry` on the
+host. The repo holds a template at `nginx/baby-registry.conf.template` with a
+`${DOMAIN}` placeholder; `task nginx:config` renders it (using `DOMAIN` from
+`.env`) to `nginx/baby-registry.conf`, which is gitignored. Install that
+rendered file on the host.
 
 ### TLS Certificates
 
-The Pi uses a real, publicly-trusted **Let's Encrypt** cert obtained via the
-**DNS-01 challenge** through **Route53** — so the Pi never needs to be reachable
-from the internet. certbot writes a `_acme-challenge.baby.henkhaus.org` TXT
-record into the `henkhaus.org` Route53 zone to prove ownership, then removes it.
-Only outbound access to Let's Encrypt + AWS is required; no port forwarding.
+The recommended TLS setup is a real, publicly-trusted **Let's Encrypt** cert
+obtained via the **DNS-01 challenge** through **Route53** — so the host never
+needs to be reachable from the internet. certbot writes a `_acme-challenge.$DOMAIN`
+TXT record into your domain's Route53 hosted zone to prove ownership, then removes
+it. Only outbound access to Let's Encrypt + AWS is required; no port forwarding.
+`setup-certs.sh` automates this end to end; you can also run the DNS-01 challenge
+manually (certbot prints a TXT record to add in the Route53 console by hand) if
+you'd rather not create programmatic AWS keys.
 
 **One-time AWS setup** — create an IAM user with this Route53-only policy
-(replace `ZONEID` with the henkhaus.org hosted zone ID):
+(replace `ZONEID` with your domain's hosted zone ID):
 
 ```json
 {
@@ -219,24 +228,24 @@ Only outbound access to Let's Encrypt + AWS is required; no port forwarding.
 }
 ```
 
-**Issue the cert** (run from the repo on your laptop):
+**Issue the cert** (run from the repo on your laptop). `DOMAIN`, `CERTBOT_EMAIL`,
+`PI_HOST`, `PI_USER`, and the AWS keys are read from `.env` (see `.env.example`):
 
 ```bash
-AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... \
-  bash setup-certs.sh 10.0.3.2 gregoryhenkhaus
+bash setup-certs.sh
 ```
 
-This installs certbot + the Route53 plugin on the Pi, issues the cert to
-`/etc/letsencrypt/live/baby.henkhaus.org/`, stores the AWS keys in
+This installs certbot + the Route53 plugin on the host, issues the cert to
+`/etc/letsencrypt/live/$DOMAIN/`, stores the AWS keys in
 `/root/.aws/credentials` (root-only, used by the renewal timer), and enables a
 deploy hook that reloads nginx on renewal.
 
 **Renewal** is automatic via `certbot.timer` (runs twice daily, renews within 30
 days of expiry). Verify with `sudo certbot renew --dry-run`.
 
-After issuing the cert the first time, point nginx at it by installing
-`nginx/baby-registry.conf` (already references the Let's Encrypt paths) and
-reloading: `sudo nginx -t && sudo systemctl reload nginx`.
+After issuing the cert the first time, render the nginx config with
+`task nginx:config` and install the result (it already references the Let's
+Encrypt paths), then reload: `sudo nginx -t && sudo systemctl reload nginx`.
 
 ## MCP Server
 
@@ -244,7 +253,7 @@ The MCP server (`mcp-server/`) exposes the registry's API as tools that Claude c
 
 ### Configuration
 
-- `.mcp.json` at project root registers the server; points to the Express API base URL (default: `http://10.0.3.2:3001`)
+- `.mcp.json` at project root registers the server; points to the Express API base URL via `REGISTRY_API_URL` (default: `http://localhost:3001`)
 - The MCP server sends `X-Device-Name: "MCP / Claude"` on all requests for audit trail identification
 
 ### Tools

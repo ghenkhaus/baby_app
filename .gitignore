@@ -34,3 +34,7 @@ registry.db-wal
 
 # Personal data
 baby_registry_tracker.xlsx
+
+# Rendered nginx config (generated from the .template by `task nginx:config`).
+# Contains your real domain — commit the .template, not this.
+nginx/baby-registry.conf
