@@ -274,7 +274,13 @@ export function useRegistry() {
 
   const addPerson = useCallback(async (data: { name: string; email?: string; notes?: string; thankYouCardId?: string }) => {
     const person = await api.createPerson(data);
-    setPeople((prev) => [...prev, person]);
+    // Idempotent insert: the server's person-upsert SSE echo is not suppressed
+    // for our own tab, so it may have already appended this person. Dedupe by id
+    // to avoid a duplicate row until the next refresh.
+    setPeople((prev) => {
+      const idx = prev.findIndex((p) => p.id === person.id);
+      return idx === -1 ? [...prev, person] : prev.map((p, n) => (n === idx ? person : p));
+    });
     if (person.thankYouCard) {
       setThankYouCards((prev) => {
         const idx = prev.findIndex((c) => c.id === person.thankYouCard!.id);
