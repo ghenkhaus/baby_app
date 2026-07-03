@@ -60,6 +60,12 @@ tasks:
     cmds:
       - npm run lint
 
+  check:
+    desc: Run everything CI checks (build + lint) — run this before opening a PR
+    cmds:
+      - task: build
+      - task: lint
+
   nginx:config:
     desc: "Render nginx/baby-registry.conf from the template using DOMAIN in .env"
     cmds:
