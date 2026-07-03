@@ -34,6 +34,7 @@ export function PersonDetailModal({
   onOpenCard,
 }: PersonDetailModalProps) {
   const card = person.thankYouCard;
+  const cardId = card?.id;
   const [showSharePicker, setShowSharePicker] = useState(false);
   const [showMergePicker, setShowMergePicker] = useState(false);
   const [mergeCandidate, setMergeCandidate] = useState<Person | null>(null);
@@ -50,9 +51,9 @@ export function PersonDetailModal({
   }, [onClose]);
 
   const members = useMemo(() => {
-    if (!card) return [] as Person[];
-    return people.filter((p) => p.thankYouCardId === card.id);
-  }, [people, card?.id]);
+    if (!cardId) return [] as Person[];
+    return people.filter((p) => p.thankYouCardId === cardId);
+  }, [people, cardId]);
 
   const otherMembers = members.filter((m) => m.id !== person.id);
   const isShared = members.length > 1;
