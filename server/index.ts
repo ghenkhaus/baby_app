@@ -129,8 +129,8 @@ app.post("/api/categories", (req, res) => {
     tx();
     broadcast({ kind: "category-upsert", name: trimmed, actor, source: getSource(req) });
     res.json({ name: trimmed });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
+  } catch (e) {
+    res.status(500).json({ error: (e as Error).message });
   }
 });
 
@@ -360,8 +360,8 @@ app.post("/api/items", (req, res) => {
       }
     }
     res.json(item);
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
+  } catch (e) {
+    res.status(500).json({ error: (e as Error).message });
   }
 });
 
@@ -447,8 +447,8 @@ app.put("/api/items/:id", (req, res) => {
       }
     });
     tx();
-  } catch (e: any) {
-    return res.status(500).json({ error: e.message });
+  } catch (e) {
+    return res.status(500).json({ error: (e as Error).message });
   }
 
   const item = loadItem(id)!;
@@ -699,8 +699,8 @@ app.post("/api/people", (req, res) => {
       insertAudit.run("person", id, "CREATE", null, null, trimmed, actor, now);
     });
     tx();
-  } catch (e: any) {
-    return res.status(500).json({ error: e.message });
+  } catch (e) {
+    return res.status(500).json({ error: (e as Error).message });
   }
   const person = loadPerson(id)!;
   if (createdCardId) {
@@ -748,8 +748,8 @@ app.post("/api/people/bulk", (req, res) => {
       }
     });
     tx();
-  } catch (e: any) {
-    return res.status(500).json({ error: e.message });
+  } catch (e) {
+    return res.status(500).json({ error: (e as Error).message });
   }
 
   for (const id of created) {
@@ -812,8 +812,8 @@ app.put("/api/people/:id", (req, res) => {
     if (releasedCard) {
       deleteCardIfEmpty(releasedCard, actor, now);
     }
-  } catch (e: any) {
-    return res.status(500).json({ error: e.message });
+  } catch (e) {
+    return res.status(500).json({ error: (e as Error).message });
   }
 
   const person = loadPerson(id)!;
@@ -1215,8 +1215,8 @@ app.post("/api/import", (req, res) => {
     const cats = (db.prepare("SELECT name FROM categories ORDER BY rowid").all() as { name: string }[]).map((r) => r.name);
     broadcast({ kind: "import-replaced", actor, source: getSource(req) });
     res.json({ categories: cats, items: loadItems() });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
+  } catch (e) {
+    res.status(500).json({ error: (e as Error).message });
   }
 });
 

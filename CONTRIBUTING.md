@@ -15,9 +15,17 @@ Prefer raw npm? `npm install --legacy-peer-deps`, then run `npm run server` and
 
 ## Before opening a PR
 
-- `task build` must pass — it type-checks with `tsc` and builds the frontend.
-- Run `task lint` and avoid introducing new warnings or errors.
+CI runs on every pull request and **must pass before merging** — it builds the
+frontend and runs the linter. Run the same checks locally first:
+
+- `task check` runs both, and is the one command to run before opening a PR:
+  - `task build` — type-checks with `tsc` and builds the frontend.
+  - `task lint` — ESLint must pass with no errors (lint errors block CI;
+    warnings don't).
 - Keep changes focused, and describe what changed and why in the PR description.
+
+`main` is protected: changes land through a pull request with passing CI, and
+review conversations must be resolved before merge.
 
 ## Conventions
 
