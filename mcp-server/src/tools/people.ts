@@ -5,12 +5,22 @@ import { client } from "../client.js";
 export function registerPeopleTools(server: McpServer) {
   server.tool(
     "list_people",
-    "List all people (gift contributors, invitees). Each entry includes contact info, their thank-you card (with mailing name, address, and note text), and the items they've contributed to.",
+    "List people (gift contributors, invitees). Each entry includes contact info, their thank-you card (mailing name, address, note text, hint, status), and the items they've contributed to. Output is paged to stay under the tool token cap — use offset to fetch the next page, or search to narrow the set.",
     {
       search: z.string().optional().describe("Case-insensitive substring match against name, email, or card label"),
+      limit: z
+        .number()
+        .int()
+        .positive()
+        .max(100)
+        .optional()
+        .describe("Max people to return (default 25). Use offset to fetch the next page."),
+      offset: z.number().int().nonnegative().optional().describe("Number of people to skip for pagination (default 0)."),
     },
     async (params) => {
       try {
+        const limit = params.limit ?? 25;
+        const offset = params.offset ?? 0;
         let people = await client.getPeople();
         if (params.search) {
           const q = params.search.toLowerCase();
@@ -21,7 +31,37 @@ export function registerPeopleTools(server: McpServer) {
               (p.thankYouCard?.label ?? "").toLowerCase().includes(q)
           );
         }
-        return { content: [{ type: "text", text: JSON.stringify(people, null, 2) }] };
+        const page = people.slice(offset, offset + limit);
+        // Project only the fields a caller needs. Drop person/card
+        // createdAt+updatedAt (noise) and the card's memberIds (redundant
+        // with the person→card relationship) to keep the output compact.
+        const slimmed = page.map((p) => ({
+          id: p.id,
+          name: p.name,
+          email: p.email,
+          notes: p.notes,
+          thankYouCardId: p.thankYouCardId,
+          thankYouCard: p.thankYouCard && {
+            id: p.thankYouCard.id,
+            label: p.thankYouCard.label,
+            mailingName: p.thankYouCard.mailingName,
+            address: p.thankYouCard.address,
+            note: p.thankYouCard.note,
+            hint: p.thankYouCard.hint,
+            status: p.thankYouCard.status,
+            sentAt: p.thankYouCard.sentAt,
+          },
+          contributions: p.contributions,
+        }));
+        const result = {
+          total: people.length,
+          offset,
+          limit,
+          returned: slimmed.length,
+          hasMore: offset + slimmed.length < people.length,
+          people: slimmed,
+        };
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
       } catch (e) {
         return {
           content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : String(e)}` }],
@@ -200,6 +240,7 @@ export function registerPeopleTools(server: McpServer) {
             hint: card.hint,
             status: card.status,
             sentAt: card.sentAt,
+            addressVerified: card.addressVerified,
             members: members.map((m) => ({ id: m.id, name: m.name })),
             gifts: Array.from(giftsByItem.values()),
           };
@@ -249,6 +290,10 @@ export function registerPeopleTools(server: McpServer) {
         .describe(
           'Lifecycle status; "" = Not Started. Setting "Sent" stamps the sent date server-side; moving away from "Sent" clears it. Omit when only editing the note — the server auto-bumps "" → "Drafted".'
         ),
+      addressVerified: z
+        .boolean()
+        .optional()
+        .describe("Whether the mailing address has been double-checked/confirmed."),
     },
     async (params) => {
       try {

@@ -126,7 +126,7 @@ export const api = {
 
   // Thank-you cards
   getThankYouCards: () => request<ThankYouCard[]>("/thank-you-cards"),
-  updateThankYouCard: (id: string, updates: Partial<{ label: string; mailingName: string; address: string; note: string; hint: string; status: ThankYouCardStatus }>) =>
+  updateThankYouCard: (id: string, updates: Partial<{ label: string; mailingName: string; address: string; note: string; hint: string; status: ThankYouCardStatus; addressVerified: boolean }>) =>
     request<ThankYouCard>(`/thank-you-cards/${id}`, { method: "PUT", body: JSON.stringify(updates) }),
 
   // App settings

@@ -12,7 +12,7 @@ interface ThankYouCardModalProps {
   onClose: () => void;
   onUpdateCard: (
     id: string,
-    updates: Partial<{ label: string; mailingName: string; address: string; note: string; hint: string; status: ThankYouCardStatus }>
+    updates: Partial<{ label: string; mailingName: string; address: string; note: string; hint: string; status: ThankYouCardStatus; addressVerified: boolean }>
   ) => Promise<ThankYouCard>;
   onOpenPerson: (id: string) => void;
   onToast: (message: string, type: "success" | "error") => void;
@@ -38,6 +38,7 @@ export function ThankYouCardModal({
   const [showPreview, setShowPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
+  const [savingVerified, setSavingVerified] = useState(false);
 
   useEffect(() => {
     setLabel(card.label);
@@ -135,6 +136,18 @@ export function ThankYouCardModal({
       onToast(e instanceof Error ? e.message : "Failed to update status", "error");
     } finally {
       setSavingStatus(false);
+    }
+  };
+
+  const handleToggleVerified = async () => {
+    if (savingVerified) return;
+    setSavingVerified(true);
+    try {
+      await onUpdateCard(card.id, { addressVerified: !card.addressVerified });
+    } catch (e) {
+      onToast(e instanceof Error ? e.message : "Failed to update address status", "error");
+    } finally {
+      setSavingVerified(false);
     }
   };
 
@@ -306,6 +319,33 @@ export function ThankYouCardModal({
                 />
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={handleToggleVerified}
+              disabled={savingVerified}
+              role="switch"
+              aria-checked={card.addressVerified}
+              className={`inline-flex items-center gap-2 text-xs font-medium rounded-lg px-2.5 py-1.5 ring-1 ring-inset transition-colors disabled:opacity-60 ${
+                card.addressVerified
+                  ? "bg-emerald-50 text-emerald-700 ring-emerald-200/70 hover:bg-emerald-100"
+                  : "bg-white/70 text-slate-600 ring-slate-200 hover:bg-white"
+              }`}
+              title="Mark this mailing address as double-checked"
+            >
+              <span
+                className={`relative inline-block w-8 h-[18px] rounded-full transition-colors ${
+                  card.addressVerified ? "bg-emerald-500" : "bg-slate-300"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-transform ${
+                    card.addressVerified ? "translate-x-[14px]" : ""
+                  }`}
+                />
+              </span>
+              {card.addressVerified ? "Address verified" : "Address not verified"}
+            </button>
 
             <div>
               <label className={labelClass}>Personal touches</label>

@@ -66,7 +66,7 @@ const PEOPLE_FIELDS: Record<string, string> = {
 
 const CARD_FIELDS: Record<string, string> = {
   label: "label", mailingName: "mailing_name", address: "address", note: "note",
-  hint: "hint", status: "status", sentAt: "sent_at",
+  hint: "hint", status: "status", sentAt: "sent_at", addressVerified: "address_verified",
 };
 
 const VALID_CARD_STATUSES = new Set(["", "Drafted", "Ready to Send", "Sent"]);
@@ -495,6 +495,7 @@ interface CardRow {
   hint: string;
   status: string;
   sent_at: string | null;
+  address_verified: number;
   created_at: string;
   updated_at: string;
 }
@@ -519,6 +520,7 @@ function rowToCard(row: CardRow, memberIds: string[] = []) {
     hint: row.hint,
     status: row.status,
     sentAt: row.sent_at,
+    addressVerified: row.address_verified === 1,
     memberIds,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -855,9 +857,12 @@ app.put("/api/thank-you-cards/:id", (req, res) => {
   const existing = db.prepare("SELECT * FROM thank_you_cards WHERE id = ?").get(id) as CardRow | undefined;
   if (!existing) return res.status(404).json({ error: "Not found" });
 
-  const { label, mailingName, address, note, hint, status } = req.body;
+  const { label, mailingName, address, note, hint, status, addressVerified } = req.body;
   if (status !== undefined && (typeof status !== "string" || !VALID_CARD_STATUSES.has(status))) {
     return res.status(400).json({ error: "Invalid status" });
+  }
+  if (addressVerified !== undefined && typeof addressVerified !== "boolean") {
+    return res.status(400).json({ error: "Invalid addressVerified" });
   }
   const now = new Date().toISOString();
   const actor = getActor(req);
@@ -870,6 +875,7 @@ app.put("/api/thank-you-cards/:id", (req, res) => {
     hint: hint ?? existing.hint,
     status: status ?? existing.status,
     sentAt: existing.sent_at,
+    addressVerified: addressVerified === undefined ? existing.address_verified : (addressVerified ? 1 : 0),
   };
 
   // Auto-bump "" → "Drafted" when the note transitions empty → non-empty and
@@ -893,8 +899,8 @@ app.put("/api/thank-you-cards/:id", (req, res) => {
 
   const tx = db.transaction(() => {
     db.prepare(
-      `UPDATE thank_you_cards SET label=?, mailing_name=?, address=?, note=?, hint=?, status=?, sent_at=?, updated_at=? WHERE id=?`
-    ).run(newVals.label, newVals.mailingName, newVals.address, newVals.note, newVals.hint, newVals.status, newVals.sentAt, now, id);
+      `UPDATE thank_you_cards SET label=?, mailing_name=?, address=?, note=?, hint=?, status=?, sent_at=?, address_verified=?, updated_at=? WHERE id=?`
+    ).run(newVals.label, newVals.mailingName, newVals.address, newVals.note, newVals.hint, newVals.status, newVals.sentAt, newVals.addressVerified, now, id);
 
     for (const [camelKey, dbCol] of Object.entries(CARD_FIELDS)) {
       const oldVal = String((existing as Record<string, unknown>)[dbCol] ?? "");
