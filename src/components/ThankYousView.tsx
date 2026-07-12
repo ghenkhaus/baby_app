@@ -15,7 +15,7 @@ interface ThankYousViewProps {
   onOpenCard: (id: string) => void;
   onUpdateCard: (
     id: string,
-    updates: Partial<{ label: string; mailingName: string; address: string; note: string; hint: string; status: ThankYouCardStatus }>
+    updates: Partial<{ label: string; mailingName: string; address: string; note: string; hint: string; status: ThankYouCardStatus; addressVerified: boolean }>
   ) => Promise<ThankYouCard>;
   onUpdateSettings: (updates: Partial<AppSettings>) => Promise<AppSettings>;
   onToast: (message: string, type: "success" | "error") => void;
@@ -44,6 +44,7 @@ export function ThankYousView({
 }: ThankYousViewProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ThankYouCardStatus | null>(null);
+  const [addressFilter, setAddressFilter] = useState<"verified" | "unverified" | null>(null);
   const [sortField, setSortField] = useState<SortField>("status");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [editingUrl, setEditingUrl] = useState(false);
@@ -100,6 +101,11 @@ export function ThankYousView({
     if (statusFilter !== null) {
       out = out.filter((r) => r.card.status === statusFilter);
     }
+    if (addressFilter !== null) {
+      out = out.filter((r) =>
+        addressFilter === "verified" ? r.card.addressVerified : !r.card.addressVerified
+      );
+    }
     const q = search.trim().toLowerCase();
     if (q) {
       out = out.filter(
@@ -111,7 +117,9 @@ export function ThankYousView({
       );
     }
     return out;
-  }, [rows, statusFilter, search]);
+  }, [rows, statusFilter, addressFilter, search]);
+
+  const verifiedCount = useMemo(() => rows.filter((r) => r.card.addressVerified).length, [rows]);
 
   const sorted = useMemo(() => {
     const dir = sortDirection === "asc" ? 1 : -1;
@@ -325,6 +333,44 @@ export function ThankYousView({
         })}
       </div>
 
+      {/* Address verification filter pills */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mr-0.5">Address</span>
+        <button
+          type="button"
+          onClick={() => setAddressFilter(null)}
+          className={`px-2.5 py-1 text-xs font-medium rounded-full ring-1 ring-inset transition-colors ${
+            addressFilter === null
+              ? "bg-slate-800 text-white ring-slate-800"
+              : "bg-white/70 text-slate-600 ring-slate-200/70 hover:bg-white"
+          }`}
+        >
+          All <span className="tabular-nums opacity-70">{rows.length}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setAddressFilter((f) => (f === "verified" ? null : "verified"))}
+          className={`px-2.5 py-1 text-xs font-medium rounded-full ring-1 ring-inset transition-colors ${
+            addressFilter === "verified"
+              ? "bg-emerald-600 text-white ring-emerald-600"
+              : "bg-emerald-50 text-emerald-700 ring-emerald-200/70 hover:brightness-95"
+          }`}
+        >
+          Verified <span className="tabular-nums opacity-70">{verifiedCount}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setAddressFilter((f) => (f === "unverified" ? null : "unverified"))}
+          className={`px-2.5 py-1 text-xs font-medium rounded-full ring-1 ring-inset transition-colors ${
+            addressFilter === "unverified"
+              ? "bg-slate-700 text-white ring-slate-700"
+              : "bg-white/70 text-slate-600 ring-slate-200/70 hover:bg-white"
+          }`}
+        >
+          Not verified <span className="tabular-nums opacity-70">{rows.length - verifiedCount}</span>
+        </button>
+      </div>
+
       {/* Search */}
       <div className="mb-3">
         <div className="relative">
@@ -378,7 +424,7 @@ export function ThankYousView({
                     onSort={toggleSort}
                     className="text-right px-2 py-2.5 w-24"
                   />
-                  <th className="text-left px-2 py-2.5 w-24">Address</th>
+                  <th className="text-left px-2 py-2.5 w-28">Address</th>
                   <SortHeader
                     label="Status"
                     field="status"
@@ -437,18 +483,27 @@ export function ThankYousView({
                         {row.total > 0 ? formatPrice(row.total) : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-2 py-2.5">
-                        <span
-                          className={`inline-flex items-center gap-1.5 text-xs ${
-                            row.hasAddress ? "text-emerald-700" : "text-slate-400"
-                          }`}
-                        >
+                        {card.addressVerified ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-emerald-700">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Verified
+                          </span>
+                        ) : (
                           <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              row.hasAddress ? "bg-emerald-500" : "bg-slate-300"
+                            className={`inline-flex items-center gap-1.5 text-xs ${
+                              row.hasAddress ? "text-amber-600" : "text-slate-400"
                             }`}
-                          />
-                          {row.hasAddress ? "Yes" : "Missing"}
-                        </span>
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                row.hasAddress ? "bg-amber-400" : "bg-slate-300"
+                              }`}
+                            />
+                            {row.hasAddress ? "Unverified" : "Missing"}
+                          </span>
+                        )}
                       </td>
                       <td className="px-2 py-2.5">
                         <span className={`inline-flex items-center gap-1.5 text-xs ${meta.text}`}>

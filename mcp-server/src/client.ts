@@ -41,6 +41,8 @@ interface ThankYouCard {
   status: string;
   /** Server-managed: set when status enters "Sent", cleared when it leaves. */
   sentAt: string | null;
+  /** Whether the mailing address has been double-checked/confirmed. */
+  addressVerified: boolean;
   memberIds: string[];
   createdAt: string;
   updatedAt: string;

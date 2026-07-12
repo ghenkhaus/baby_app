@@ -56,6 +56,7 @@ db.exec(`
     hint TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT '' CHECK(status IN ('', 'Drafted', 'Ready to Send', 'Sent')),
     sent_at TEXT,
+    address_verified INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -300,6 +301,10 @@ db.pragma("foreign_keys = OFF");
   if (!cols.includes("hint")) {
     db.exec("ALTER TABLE thank_you_cards ADD COLUMN hint TEXT NOT NULL DEFAULT ''");
     console.log("Added thank_you_cards.hint.");
+  }
+  if (!cols.includes("address_verified")) {
+    db.exec("ALTER TABLE thank_you_cards ADD COLUMN address_verified INTEGER NOT NULL DEFAULT 0");
+    console.log("Added thank_you_cards.address_verified.");
   }
 }
 
