@@ -10,6 +10,24 @@ server so you can manage the registry from Claude.
 > (optionally behind TLS via the included nginx config). Do **not** expose it
 > directly to the public internet.
 
+## Screenshots
+
+Plan and compare items across every registry, track who's giving what, and keep
+thank-you cards moving — all from one place.
+
+![Registry grouped by category, with a live spend overview and filters](docs/screenshots/items-grouped.png)
+
+| Table view — sortable columns for every field | Item detail — status, contributors, notes & change history |
+| :---: | :---: |
+| ![Table view](docs/screenshots/items-table.png) | ![Item detail](docs/screenshots/item-detail.png) |
+| **People** — who gave what, and how much | **Thank-yous** — draft, address, and track every card |
+| ![People view](docs/screenshots/people.png) | ![Thank-yous view](docs/screenshots/thank-yous.png) |
+
+Every create, update, and delete is recorded in the audit log — with who changed
+what, and when:
+
+![Audit log with field-level change history](docs/screenshots/audit-log.png)
+
 ## Features
 
 - **Item tracking** — name, category, price, priority, status, registry, product
