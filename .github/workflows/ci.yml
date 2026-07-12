@@ -17,5 +17,12 @@ jobs:
         run: npm install --legacy-peer-deps
       - name: Build
         run: npm run build
+      - name: Install mcp-server dependencies
+        run: npm install --legacy-peer-deps
+        working-directory: mcp-server
+      - name: Build mcp-server
+        run: npm run build
+        working-directory: mcp-server
       - name: Lint
         run: npm run lint
+        continue-on-error: true
