@@ -440,7 +440,7 @@ export function ThankYouCardModal({
                 type="button"
                 onClick={handleSave}
                 disabled={!dirty || saving}
-                className="px-3 py-1.5 text-xs font-semibold text-white bg-gradient-to-b from-indigo-500 to-indigo-600 rounded-lg hover:from-indigo-500 hover:to-indigo-700 transition-all shadow-sm shadow-indigo-600/25 ring-1 ring-inset ring-white/10 disabled:opacity-50"
+                className="min-w-[5.5rem] text-center px-3 py-1.5 text-xs font-semibold text-white bg-gradient-to-b from-indigo-500 to-indigo-600 rounded-lg hover:from-indigo-500 hover:to-indigo-700 transition-colors shadow-sm shadow-indigo-600/25 ring-1 ring-inset ring-white/10 disabled:opacity-50"
               >
                 {saving ? "Saving…" : dirty ? "Save card" : "Saved"}
               </button>
