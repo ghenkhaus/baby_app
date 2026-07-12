@@ -132,7 +132,11 @@ export function AuditLogModal({ onClose }: AuditLogModalProps) {
   }, []);
 
   useEffect(() => {
-    loadMore(0);
+    // Kick off the initial load inside an async IIFE so the state updates land
+    // after the await, not synchronously in the effect body.
+    void (async () => {
+      await loadMore(0);
+    })();
   }, [loadMore]);
 
   useEffect(() => {

@@ -40,13 +40,9 @@ export function ThankYouCardModal({
   const [savingStatus, setSavingStatus] = useState(false);
   const [savingVerified, setSavingVerified] = useState(false);
 
-  useEffect(() => {
-    setLabel(card.label);
-    setMailingName(card.mailingName);
-    setAddress(card.address);
-    setNote(card.note);
-    setHint(card.hint);
-  }, [card.id, card.label, card.mailingName, card.address, card.note, card.hint]);
+  // Form state is seeded from the card props above and this modal is mounted
+  // with key={card.id} by the parent, so switching cards remounts with fresh
+  // state — no prop→state sync effect needed.
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
