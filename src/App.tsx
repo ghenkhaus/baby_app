@@ -440,6 +440,7 @@ function App() {
 
       {viewingCard && !showPersonForm && (
         <ThankYouCardModal
+          key={viewingCard.id}
           card={viewingCard}
           people={registry.people}
           postableProjectUrl={registry.settings.postableProjectUrl}

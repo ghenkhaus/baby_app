@@ -30,7 +30,6 @@ export function HintSpeedRun({ rows, onUpdateCard, onClose, onToast }: HintSpeed
     rows.filter((r) => r.card.hint.trim() === "").map((r) => r.card.id)
   );
   const [index, setIndex] = useState(0);
-  const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
   const [done, setDone] = useState(false);
@@ -43,11 +42,20 @@ export function HintSpeedRun({ rows, onUpdateCard, onClose, onToast }: HintSpeed
   );
   const current = queue[index];
 
-  useEffect(() => {
+  // Draft is seeded from the current card and reset when the current card
+  // changes, during render rather than in an effect (avoids a cascading
+  // render). See "resetting state when a prop changes" in the React docs.
+  const [draft, setDraft] = useState(current?.card.hint ?? "");
+  const [draftForId, setDraftForId] = useState(current?.card.id);
+  if (current?.card.id !== draftForId) {
+    setDraftForId(current?.card.id);
     setDraft(current?.card.hint ?? "");
-    // Focus after the textarea re-renders for the new card.
+  }
+
+  useEffect(() => {
+    // Focus the textarea after it re-renders for the new card.
     requestAnimationFrame(() => textareaRef.current?.focus());
-  }, [current?.card.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [current?.card.id]);
 
   const toggleSkip = (skip: boolean) => {
     setSkipHinted(skip);
